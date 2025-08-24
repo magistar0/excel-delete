@@ -3,7 +3,6 @@ import os
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
 import pandas as pd
-# import openpyxl
 
 class Function ():
     def readDataFromExcel(filepath: str):
