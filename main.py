@@ -1,9 +1,14 @@
 import sys
 import os
-import shutil
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
-from modules import Modules
+import pandas as pd
+# import openpyxl
+
+class Function ():
+    def readDataFromExcel(filepath: str):
+        df = pd.read_excel(open(filepath, 'rb'), index_col=None, header=None)
+        return df
 
 
 class Main(QMainWindow):
@@ -12,103 +17,73 @@ class Main(QMainWindow):
         self.setupUi(self)
 
     def setupUi(self, MainWindow):
-        self.setWindowTitle("Шифровальщик")
+        self.setWindowTitle("Excel deletion script")
         self.setMinimumWidth(600)
-        self.setMinimumHeight(400)
+        self.setMinimumHeight(200)
+
+        self.table1_df = None
+        self.table2_df = None
+        self.result_df = None
 
         self.stackedWidget = QStackedWidget()
         self.main_widget = QWidget()
         self.main_layout = QGridLayout()
-        self.header = QLabel("Введите текст:")
-        self.combo = QComboBox()
-        self.list_of_items = ["Метод перестановки", "Метод Цезаря", "Ассиметричный метод"]
-        self.combo.addItems(self.list_of_items)
-        self.combo.setCurrentIndex(0)
-        self.header2 = QLabel("Выберите способ шифрования:")
-        self.text_edit = QPlainTextEdit(self)
-        self.from_file_btn = QPushButton("Прочитать из файла .txt")
-        self.encode_btn = QPushButton("Зашифровать")
-        self.text_edit_result = QPlainTextEdit(self)
-        self.text_edit_result.setReadOnly(True)
-        self.text_edit_result.setPlaceholderText("Здесь будет результат шифрования...")
-        self.to_file_btn = QPushButton("Записать в файл .txt")
+        self.header = QLabel("Удалить из таблицы 1 имена, имеющиеся в таблице 2.")
+        self.from_header = QLabel("Таблица 1: ")
+        self.to_header = QLabel("Таблица 2: ")
+        self.from_line = QLineEdit()
+        self.from_line.setPlaceholderText("Копировать из...")
+        self.from_line.setEnabled(False)
+        self.from_choose_btn = QPushButton("Выбрать")
+        self.to_line = QLineEdit()
+        self.to_line.setPlaceholderText("Копировать в...")
+        self.to_line.setEnabled(False)
+        self.to_choose_btn = QPushButton("Выбрать")
+        self.process_btn = QPushButton("Старт")
+        self.main_layout.addWidget(self.header, 0, 0, 1, 3, alignment=Qt.AlignCenter)
+        self.main_layout.addWidget(self.from_header, 1, 0)
+        self.main_layout.addWidget(self.from_line, 1, 1)
+        self.main_layout.addWidget(self.from_choose_btn, 1, 2)
+        self.main_layout.addWidget(self.to_header, 2, 0)
+        self.main_layout.addWidget(self.to_line, 2, 1)
+        self.main_layout.addWidget(self.to_choose_btn, 2, 2)
+        self.main_layout.addWidget(self.process_btn, 3, 0, 1, 3)
 
-        self.current_mode = 0 # 0 - encode, 1 - decode
-        self.btn_header = QLabel("Выберите режим работы программы:")
-        self.encode_mode_btn = QPushButton("Шифрование")
-        self.decode_mode_btn = QPushButton("Дешифрование")
-        self.encode_mode_btn.setEnabled(False)
-
-        self.main_layout.addWidget(self.btn_header, 0, 0, 1, 2, alignment=Qt.AlignCenter)
-        self.main_layout.addWidget(self.encode_mode_btn, 1, 0, 1, 2)
-        self.main_layout.addWidget(self.decode_mode_btn, 2, 0, 1, 2)
-        self.main_layout.addWidget(self.header, 3, 0, 1, 2, alignment=Qt.AlignCenter)
-        self.main_layout.addWidget(self.text_edit, 4, 0, 1, 1)
-        self.main_layout.addWidget(self.from_file_btn, 4, 1, 1, 1)
-        self.main_layout.addWidget(self.header2, 5, 0, 1, 2, alignment=Qt.AlignCenter)
-        self.main_layout.addWidget(self.combo, 6, 0, 1, 2)
-        self.main_layout.addWidget(self.encode_btn, 7, 0, 1, 2)
-        self.main_layout.addWidget(self.text_edit_result, 8, 0, 1, 1)
-        self.main_layout.addWidget(self.to_file_btn, 8, 1, 1, 1)
-
-        self.encode_btn.clicked.connect(self.__encodeButtonClicked)
-        self.from_file_btn.clicked.connect(self.__fromfileButtonClicked)
-        self.to_file_btn.clicked.connect(self.__tofileButtonClicked)
-        self.encode_mode_btn.clicked.connect(self.__encodeModeClicked)
-        self.decode_mode_btn.clicked.connect(self.__decodeModeClicked)
+        self.from_choose_btn.clicked.connect(self.__fromButtonClicked)
+        self.to_choose_btn.clicked.connect(self.__toButtonClicked)
+        self.process_btn.clicked.connect(self.__process)
 
         self.main_widget.setLayout(self.main_layout)
         self.stackedWidget.addWidget(self.main_widget)
         self.stackedWidget.setCurrentIndex(0)
         self.setCentralWidget(self.stackedWidget)
 
-    def __encodeModeClicked(self):
-        self.encode_mode_btn.setEnabled(False)
-        self.decode_mode_btn.setEnabled(True)
-        self.current_mode = 0
-        self.encode_btn.setText("Зашифровать")
-        self.header2.setText("Выберите способ шифрования:")
 
-    def __decodeModeClicked(self):
-        self.decode_mode_btn.setEnabled(False)
-        self.encode_mode_btn.setEnabled(True)
-        self.current_mode = 1
-        self.encode_btn.setText("Расшифровать")
-        self.header2.setText("Выберите способ дешифрования:")
+    def __fromButtonClicked(self):
+        self.from_destination = QFileDialog.getOpenFileName(self, "Выбрать", "", "Excel Files (*.xls *.xlsx)")
+        self.from_line.setText(self.from_destination[0])
+        df = Function.readDataFromExcel(self.from_destination[0])
+        self.table1_df = df
 
-    def __encodeButtonClicked(self):
-        self.type = self.combo.currentIndex()
-        match self.type:
-            case 0:
-                if (not self.current_mode):
-                    self.crypted = Modules.shuffleCrypto(self.text_edit.toPlainText(),1)
-                else:
-                    self.crypted = Modules.shuffleDecrypt(self.text_edit.toPlainText(),1)
-            case 1:
-                if (not self.current_mode):
-                    self.crypted = Modules.caesarCrypto(self.text_edit.toPlainText(),1)
-                else:
-                    self.crypted = Modules.caesarDecrypt(self.text_edit.toPlainText(),1)
-            case 2:
-                self.crypted = self.text_edit.toPlainText()
-                QMessageBox.information(self, "Информация", "Пока недоступно.", QMessageBox.Ok)
-        self.text_edit_result.setPlainText(self.crypted)
+    def __toButtonClicked(self):
+        self.to_destination = QFileDialog.getOpenFileName(self, "Выбрать", "", "Excel Files (*.xls *.xlsx)")
+        self.to_line.setText(self.to_destination[0])
+        df = Function.readDataFromExcel(self.to_destination[0])
+        self.table2_df = df
 
-    def __fromfileButtonClicked(self):
-        filename = QFileDialog.getOpenFileName(self,"Выбор файла",'.')
-        if not bool(filename[0]):
-            pass
-        elif not filename[0].endswith(".txt"):
-            QMessageBox.critical(self, "Ошибка", "Поддерживаются только файлы формата .txt.", QMessageBox.Ok)
-        else:
-            text = Modules.readTextFromTxt(filename[0])
-            self.text_edit.setPlainText(text)
+    def __process(self):
+        names_to_delete = self.table2_df[0].tolist()
+        table1_list = self.table1_df.values.tolist()
+        new_table = []
+        for i in table1_list:
+            if i[0] not in names_to_delete:
+                new_table.append(i)
+        self.result_df = pd.DataFrame(new_table)
+        QMessageBox.information(self,"Готово", "Выберите, куда сохранить файл с результатом.", QMessageBox.Ok)
+        self.destination = QFileDialog.getExistingDirectory()
+        self.result_df.to_excel(self.destination + "/result.xlsx", index=False)
+        QMessageBox.information(self,"Готово", "Файл сохранен по адресу " + self.destination + "/result.xlsx" + ".", QMessageBox.Ok)
 
-    def __tofileButtonClicked(self):
-        QMessageBox.information(self, "Сохранение файла", "Выберите директорию для сохранения результата шифрования. В ней будет создан файл result.txt с результатом шифрования. Внимание: если файл с таким именем уже существует, его содержимое будет стёрто.", QMessageBox.Ok)
-        directory = QFileDialog.getExistingDirectory(self,"Сохранение файла",'.')
-        Modules.writeTxtInDir(directory,self.text_edit_result.toPlainText())
-        
 
 def main():
     app = QApplication(sys.argv)
